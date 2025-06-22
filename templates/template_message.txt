@@ -1,0 +1,5 @@
+```Logged!
+─────────────
+Type   : ${type}
+Amount : ${amount}
+Detail : ${description}```

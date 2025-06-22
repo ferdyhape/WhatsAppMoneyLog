@@ -14,6 +14,7 @@ import logger from "../helpers/logger.js";
 import qrcode from "qrcode";
 import fs from "fs";
 import pino from "pino";
+import { readFile } from "fs/promises";
 
 import { parseMessage } from "../helpers/parsingMessage.js";
 
@@ -97,26 +98,42 @@ export const connectToWhatsApp = async () => {
 
       if (hasilParse) {
         logger.info(`Parsed message from ${noWa}:`, hasilParse);
-        const replyText = buildMessage(
+        const replyText = await buildMessageFromTemplate(
           hasilParse.type,
           hasilParse.amount,
           hasilParse.description
         );
-        await sock.sendMessage(
-          noWa,
-          { text: replyText },
-          { quoted: messages[0] }
-        );
+        if (replyText) {
+          await sock.sendMessage(
+            noWa,
+            { text: replyText },
+            { quoted: messages[0] }
+          );
+        } else {
+          logger.error("Gagal membangun pesan dari template.");
+        }
       }
     }
   });
 };
 
-const buildMessage = (type, amount, description) => {
-  return `Terima kasih, pencatatan pemasukan/pengeluaran berhasil:
-        - Tipe: ${type}
-        - Nominal: Rp${amount}
-        - Keterangan: ${description || "-"}`;
+const buildMessageFromTemplate = async (type, amount, description) => {
+  try {
+    const template = await readFile(
+      "./templates/template_message.txt",
+      "utf-8"
+    );
+
+    const message = template
+      .replace("${type}", type)
+      .replace("${amount}", amount)
+      .replace("${description}", description || "-");
+
+    return message;
+  } catch (err) {
+    console.error("Error reading message template:", err);
+    return null;
+  }
 };
 
 const deleteAuthData = () => {
