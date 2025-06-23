@@ -1,5 +1,5 @@
-```Logged!
-─────────────
+```Logged! #${id}
+─────────────────
 Type   : ${type}
 Amount : ${amount}
 Detail : ${description}```

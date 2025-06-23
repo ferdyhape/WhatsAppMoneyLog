@@ -26,6 +26,11 @@ const server = http.createServer(app);
 const io = new SocketIO(server);
 const port = process.env.PORT;
 
+const nDate = new Date().toLocaleString("id-ID", {
+  timeZone: "Asia/Jakarta",
+});
+console.log("▶ Current Time (WIB):", nDate);
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));

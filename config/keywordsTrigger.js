@@ -1,76 +1,22 @@
-export const moneyUnits = ["rb", "ribu", "k"];
+export const incomeKeywords = ["in"];
 
-const numberPattern = "(\\d{1,3}(?:\\.\\d{3})+|\\d+)";
-const unitPattern = `(${moneyUnits.join("|")})?`;
+export const expenseKeywords = ["out"];
 
-export const moneyPatterns = [new RegExp(numberPattern + unitPattern, "i")];
-
-export const incomeKeywords = [
-  // Bahasa
-  "terima",
-  "dapat",
-  "masuk",
-  "transfer",
-  "bayar saya",
-  "pendapatan",
-  "gaji",
-  "bonus",
-  "hadiah",
-  "refund",
-  "cashback",
-  "penjualan",
-  "uang masuk",
-  "pemasukan",
-
-  // English
-  "income",
-  "in",
-  "salary",
-  "pay",
-  "paid",
-  "received",
-  "bonus",
-  "reward",
-  "refund",
-  "cashback",
-  "transfer in",
-  "deposit",
-  "earnings",
+export const moneyConvert = [
+  ["rb", 1_000],
+  ["ribu", 1_000],
+  ["k", 1_000],
+  ["juta", 1_000_000],
+  ["jt", 1_000_000],
+  ["miliar", 1_000_000_000],
+  ["mlr", 1_000_000_000],
+  ["m", 1_000_000_000],
 ];
 
-export const expenseKeywords = [
-  // Bahasa
-  "bayar",
-  "keluar",
-  "pakai",
-  "tarik",
-  "beli",
-  "utang",
-  "pengeluaran",
-  "biaya",
-  "gaji karyawan",
-  "sewa",
-  "tagihan",
-  "belanja",
-  "pembayaran",
-  "uang keluar",
-  "cash out",
-  "charge",
+const allUnits = moneyConvert.map(([unit]) => unit);
+const numberPattern = "\\d{1,3}(?:\\.\\d{3})*|\\d+";
+const unitPattern = `(${allUnits.join("|")})?\\b`;
 
-  // English
-  "expense",
-  "out",
-  "pay",
-  "paid",
-  "withdraw",
-  "purchase",
-  "debit",
-  "charge",
-  "bill",
-  "rent",
-  "shopping",
-  "payment",
-  "fees",
-  "cost",
-  "outgoing",
+export const moneyPatterns = [
+  new RegExp(`\\b(${numberPattern})${unitPattern}`, "i"),
 ];

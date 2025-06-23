@@ -2,7 +2,6 @@ import pino from "pino";
 import { join } from "path";
 import { mkdirSync, createWriteStream } from "fs";
 
-// Buat folder logs jika belum ada
 mkdirSync("logs", { recursive: true });
 
 const logger = pino({
@@ -10,7 +9,6 @@ const logger = pino({
   transport: {
     targets: [
       {
-        // Tampilkan ke terminal (console) dengan format readable
         target: "pino-pretty",
         options: {
           colorize: true,
@@ -19,7 +17,6 @@ const logger = pino({
         },
       },
       {
-        // Simpan log ke file dengan format readable juga
         target: "pino-pretty",
         options: {
           colorize: false,

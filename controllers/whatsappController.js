@@ -14,9 +14,18 @@ import logger from "../helpers/logger.js";
 import qrcode from "qrcode";
 import fs from "fs";
 import pino from "pino";
-import { readFile } from "fs/promises";
+import {
+  parseMessage,
+  checkIfManualCommand,
+  parsingManualCommand,
+} from "../helpers/parsingMessage.js";
 
-import { parseMessage } from "../helpers/parsingMessage.js";
+import {
+  buildMessageLog,
+  getHelpCommand,
+  buildMessageReport,
+} from "../helpers/formatter.js";
+import * as transactionService from "../services/transactionService.js";
 
 const store = makeInMemoryStore({
   logger: pino().child({ level: "silent", stream: "store" }),
@@ -94,46 +103,68 @@ export const connectToWhatsApp = async () => {
       const noWa = messages[0].key.remoteJid;
 
       await sock.readMessages([messages[0].key]);
-      const hasilParse = parseMessage(pesan);
 
-      if (hasilParse) {
-        logger.info(`Parsed message from ${noWa}:`, hasilParse);
-        const replyText = await buildMessageFromTemplate(
-          hasilParse.type,
-          hasilParse.amount,
-          hasilParse.description
+      if (pesan === "help" || pesan === "Help" || pesan === "HELP") {
+        await sock.sendMessage(
+          noWa,
+          { text: await getHelpCommand() },
+          { quoted: messages[0] }
         );
+      }
+
+      if (checkIfManualCommand(pesan)) {
+        const parsed = parsingManualCommand(pesan);
+        const type = parsed.type;
+        const params = {
+          day: parsed.day,
+          month: parsed.month,
+          year: parsed.year,
+        };
+        const res = await transactionService.getBy(type, params);
+
+        const replyText = await buildMessageReport(
+          res.total_income,
+          res.total_expense,
+          type,
+          params
+        );
+
         if (replyText) {
           await sock.sendMessage(
             noWa,
             { text: replyText },
             { quoted: messages[0] }
           );
-        } else {
-          logger.error("Gagal membangun pesan dari template.");
+        }
+      } else {
+        const parseResult = parseMessage(pesan);
+
+        if (parseResult) {
+          logger.info(`Parsed message from ${noWa}:`, parseResult);
+
+          // store to database
+          const res = await transactionService.store(parseResult);
+
+          const replyText = await buildMessageLog(
+            res.id,
+            parseResult.type,
+            parseResult.amount,
+            parseResult.description
+          );
+
+          if (replyText) {
+            await sock.sendMessage(
+              noWa,
+              { text: replyText },
+              { quoted: messages[0] }
+            );
+          } else {
+            logger.error("Error building reply message.");
+          }
         }
       }
     }
   });
-};
-
-const buildMessageFromTemplate = async (type, amount, description) => {
-  try {
-    const template = await readFile(
-      "./templates/template_message.txt",
-      "utf-8"
-    );
-
-    const message = template
-      .replace("${type}", type)
-      .replace("${amount}", amount)
-      .replace("${description}", description || "-");
-
-    return message;
-  } catch (err) {
-    console.error("Error reading message template:", err);
-    return null;
-  }
 };
 
 const deleteAuthData = () => {

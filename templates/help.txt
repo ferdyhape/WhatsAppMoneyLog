@@ -1,0 +1,8 @@
+```Example Usage!
+─────────────────
+in 300rb proyek
+out 500rb kos
+out 10rb makan siang -date:23-06-2025
+-show daily:23-06-2025
+-show monthly:06-2025
+-show yearly:2025```

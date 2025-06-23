@@ -1,0 +1,6 @@
+```Report!
+─────────────────
+Type   : ${type}
+Param  : ${param}
+Income : ${total_income}
+Expense: ${total_expense}```
