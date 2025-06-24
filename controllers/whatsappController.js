@@ -9,6 +9,9 @@ const {
   useMultiFileAuthState,
 } = baileys;
 
+import dotenv from "dotenv";
+dotenv.config();
+
 import { Boom } from "@hapi/boom";
 import logger from "../helpers/logger.js";
 import qrcode from "qrcode";
@@ -102,6 +105,11 @@ export const connectToWhatsApp = async () => {
 
     const msg = messages[0].message.conversation || "";
     const whatsappNumber = messages[0].key.remoteJid;
+    logger.info(`Received message from ${whatsappNumber} "${msg}"`);
+
+    if (!isNumberAllowed(whatsappNumber)) {
+      return;
+    }
 
     await sock.readMessages([messages[0].key]);
 
@@ -111,9 +119,17 @@ export const connectToWhatsApp = async () => {
   });
 };
 
+function isNumberAllowed(whatsappNumber) {
+  // whataspp number param is 6287856725286@s.whatsapp.net
+  const allowedNumber = process.env.ALLOWED_WHATSAPP_NUMBER;
+  const numberOnly = whatsappNumber.split("@")[0];
+  return allowedNumber.includes(numberOnly);
+}
+
 async function handleHelpCommand(sock, whatsappNumber, msg, originalMsg) {
   if (/^help$/i.test(msg)) {
     const helpText = await getHelpCommand();
+    logger.info(`Sending help message to ${whatsappNumber}`);
     await sock.sendMessage(
       whatsappNumber,
       { text: helpText },
@@ -128,7 +144,9 @@ async function handleShowCommand(sock, whatsappNumber, msg, originalMsg) {
   if (!checkIfShowCommand(msg)) return false;
 
   const parsed = parsingShowCommand(msg);
+  logger.info(`parsed show command result is "${JSON.stringify(parsed)}"`);
   if (!parsed.success) {
+    logger.error(`Error parsing show command: ${parsed.error}`);
     await sock.sendMessage(
       whatsappNumber,
       { text: `Error: ${parsed.error}` },
@@ -140,6 +158,7 @@ async function handleShowCommand(sock, whatsappNumber, msg, originalMsg) {
   const { type, day, month, year } = parsed;
   const params = { day, month, year };
   const res = await transactionService.getBy(type, params);
+  logger.info(`show command result is "${JSON.stringify(res)}"`);
   const replyText = await buildMessageReport(
     res.total_income,
     res.total_expense,
@@ -159,7 +178,9 @@ async function handleShowCommand(sock, whatsappNumber, msg, originalMsg) {
 
 async function handleStoreCommand(sock, whatsappNumber, msg, originalMsg) {
   const parseResult = parseMessage(msg);
+  logger.info(`parsed result is "${JSON.stringify(parseResult)}"`);
   if (!parseResult.success) {
+    logger.error(`Error parsing store command: ${parseResult.error}`);
     await sock.sendMessage(
       whatsappNumber,
       { text: `Error: ${parseResult.error}` },
@@ -168,8 +189,8 @@ async function handleStoreCommand(sock, whatsappNumber, msg, originalMsg) {
     return true;
   }
 
-  logger.info(`Parsed message from ${whatsappNumber}:`, parseResult);
   const res = await transactionService.store(parseResult);
+  logger.info(`stored result is "${JSON.stringify(res)}"`);
   const replyText = await buildMessageLog(
     res.id,
     parseResult.type,

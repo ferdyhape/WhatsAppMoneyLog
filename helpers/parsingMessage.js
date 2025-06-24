@@ -66,7 +66,7 @@ export const parseDescription = (text, rawAmountStr) => {
 
 export const parseMessage = (message, params = []) => {
   if (!message || typeof message !== "string") {
-    return null;
+    return errorResponse("Invalid message input", 400);
   }
 
   let msgWithoutParams = message;
@@ -76,7 +76,7 @@ export const parseMessage = (message, params = []) => {
   const datePattern = /-date:(\d{2}-\d{2}-\d{4})\b/i;
   const dateMatch = message.match(datePattern);
   if (dateMatch) {
-    date = dateMatch[1]; // The captured date string e.g. "22-06-2025"
+    date = dateMatch[1];
     msgWithoutParams = msgWithoutParams.replace(dateMatch[0], "").trim();
   }
 
@@ -87,22 +87,24 @@ export const parseMessage = (message, params = []) => {
   }
 
   const parseResult = parseMoney(msgWithoutParams);
-  if (!parseResult) return null;
+  if (!parseResult) {
+    return errorResponse("Unable to parse amount from message", 400);
+  }
 
   const { amount, raw } = parseResult;
   const type = parseType(msgWithoutParams);
   const description = parseDescription(msgWithoutParams, raw);
 
   if (amount === null || type === "unknown") {
-    return null;
+    return errorResponse("Failed to determine amount or type", 400);
   }
 
-  return {
+  return successResponse({
     amount,
     type,
     description,
     transactionDate: date,
-  };
+  });
 };
 
 // check if message starts with -show
