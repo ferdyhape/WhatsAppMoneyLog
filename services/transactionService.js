@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
+import { successResponse, errorResponse } from "../helpers/response.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -31,9 +32,7 @@ function getStartEndDate(by, params) {
 
   if (by === "monthly") {
     if (!params.year || !params.month) {
-      throw new Error(
-        "Parameter 'year' dan 'month' wajib untuk filter monthly."
-      );
+      throw new Error("'year' and 'month' is required for filter monthly.");
     }
 
     const year = parseInt(params.year);
@@ -57,7 +56,7 @@ function getStartEndDate(by, params) {
 
   if (by === "yearly") {
     if (!params.year) {
-      throw new Error("Parameter 'year' wajib untuk filter yearly.");
+      throw new Error("'year' is required for filter yearly.");
     }
 
     const year = parseInt(params.year);
@@ -71,91 +70,106 @@ function getStartEndDate(by, params) {
     return { start, end };
   }
 
-  throw new Error('Parameter "by" harus "daily", "monthly", atau "yearly".');
+  throw new Error("Params should be daily, monthly, or yearly.");
 }
 
 export async function store(data) {
-  if (!data.type || !data.amount || !data.description) {
-    throw new Error("Missing required fields: type, amount, description");
-  }
-
-  if (data.type !== "expense" && data.type !== "income") {
-    throw new Error("type must be 'expense' or 'income'");
-  }
-
-  let transactionDate;
-
-  if (data.transactionDate) {
-    const [day, month, year] = data.transactionDate.split("-").map(Number);
-    if (!day || !month || !year) {
-      throw new Error("Invalid transactionDate format, expected DD-MM-YYYY");
+  try {
+    if (!data.type || !data.amount || !data.description) {
+      return errorResponse(
+        "Missing required fields: type, amount, description",
+        400
+      );
     }
 
-    transactionDate = dayjs
-      .tz(`${year}-${month}-${day} 00:00:00`, JAKARTA_TZ)
-      .utc()
-      .toISOString();
-  } else {
-    transactionDate = dayjs().tz(JAKARTA_TZ).startOf("day").utc().toISOString();
+    if (data.type !== "expense" && data.type !== "income") {
+      return errorResponse("type must be 'expense' or 'income'", 400);
+    }
+
+    let transactionDate;
+
+    if (data.transactionDate) {
+      const [day, month, year] = data.transactionDate.split("-").map(Number);
+      if (!day || !month || !year) {
+        return errorResponse(
+          "Invalid transactionDate format, expected DD-MM-YYYY",
+          400
+        );
+      }
+
+      transactionDate = dayjs
+        .tz(`${year}-${month}-${day} 00:00:00`, JAKARTA_TZ)
+        .utc()
+        .toISOString();
+    } else {
+      transactionDate = dayjs()
+        .tz(JAKARTA_TZ)
+        .startOf("day")
+        .utc()
+        .toISOString();
+    }
+
+    const transaction = await prisma.transaction.create({
+      data: {
+        type: data.type,
+        amount: data.amount,
+        description: data.description,
+        transactionDate,
+      },
+    });
+
+    return successResponse(transaction);
+  } catch (error) {
+    return errorResponse(error.message || "Unknown error", 500);
   }
-
-  const transaction = await prisma.transaction.create({
-    data: {
-      type: data.type,
-      amount: data.amount,
-      description: data.description,
-      transactionDate,
-    },
-  });
-
-  return transaction;
 }
 
 export async function getBy(by, params) {
-  const { start, end } = getStartEndDate(by, params);
+  try {
+    const { start, end } = getStartEndDate(by, params);
 
-  console.log("▶ Filter Time Range:");
-  console.log("Start (WIB):", dayjs(start).tz(JAKARTA_TZ).format());
-  console.log("End   (WIB):", dayjs(end).tz(JAKARTA_TZ).format());
-
-  const result = await prisma.transaction.groupBy({
-    by: ["type"],
-    where: {
-      transactionDate: {
-        gte: start,
-        lte: end,
+    const result = await prisma.transaction.groupBy({
+      by: ["type"],
+      where: {
+        transactionDate: {
+          gte: start,
+          lte: end,
+        },
       },
-    },
-    _sum: {
-      amount: true,
-    },
-  });
+      _sum: {
+        amount: true,
+      },
+    });
 
-  console.log("▶ Result:" + JSON.stringify(result));
+    let total_income = 0;
+    let total_expense = 0;
 
-  let total_income = 0;
-  let total_expense = 0;
-
-  for (const row of result) {
-    if (row.type === "income") {
-      total_income = row._sum.amount || 0;
-    } else if (row.type === "expense") {
-      total_expense = row._sum.amount || 0;
+    for (const row of result) {
+      if (row.type === "income") {
+        total_income = row._sum.amount || 0;
+      } else if (row.type === "expense") {
+        total_expense = row._sum.amount || 0;
+      }
     }
-  }
 
-  return {
-    total_income,
-    total_expense,
-  };
+    return successResponse({ total_income, total_expense });
+  } catch (error) {
+    return errorResponse(error.message || "Unknown error", 500);
+  }
 }
 
 export async function deleteById(id) {
-  if (!id) {
-    throw new Error("Missing required id");
-  }
+  try {
+    if (!id) {
+      return errorResponse("Missing required id", 400);
+    }
 
-  return await prisma.transaction.delete({
-    where: { id },
-  });
+    const deleted = await prisma.transaction.delete({
+      where: { id },
+    });
+
+    return successResponse(deleted);
+  } catch (error) {
+    return errorResponse(error.message || "Unknown error", 500);
+  }
 }

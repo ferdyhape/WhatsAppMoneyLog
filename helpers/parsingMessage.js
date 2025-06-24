@@ -4,6 +4,7 @@ import {
   expenseKeywords,
   moneyConvert,
 } from "../config/keywordsTrigger.js";
+import { errorResponse, successResponse } from "./response.js";
 
 export const parseMoney = (text) => {
   for (const pattern of moneyPatterns) {
@@ -105,14 +106,14 @@ export const parseMessage = (message, params = []) => {
 };
 
 // check if message starts with -show
-export const checkIfManualCommand = (message) => {
+export const checkIfShowCommand = (message) => {
   if (message.startsWith("-show")) {
     return true;
   }
   return false;
 };
 
-export const parsingManualCommand = (message) => {
+export const parsingShowCommand = (message) => {
   const commandPart = message.slice(5).trim();
 
   if (!commandPart) {
@@ -121,7 +122,6 @@ export const parsingManualCommand = (message) => {
 
   const [type, param] = commandPart.split(":").map((s) => s.trim());
 
-  // Inisialisasi default semua variabel
   let day = null;
   let month = null;
   let year = null;
@@ -132,7 +132,10 @@ export const parsingManualCommand = (message) => {
         if (/^\d{2}-\d{2}-\d{4}$/.test(param)) {
           [day, month, year] = param.split("-").map(Number);
         } else {
-          throw new Error("Invalid date format for daily. Expected DD-MM-YYYY");
+          return errorResponse(
+            "Invalid date format for daily. Expected DD-MM-YYYY",
+            400
+          );
         }
         break;
 
@@ -141,8 +144,9 @@ export const parsingManualCommand = (message) => {
           month = Number(param.slice(0, 2));
           year = Number(param.slice(3, 7));
         } else {
-          throw new Error(
-            "Invalid period format for monthly. Expected MM-YYYY"
+          return errorResponse(
+            "Invalid period format for monthly. Expected MM-YYYY",
+            400
           );
         }
         break;
@@ -151,19 +155,22 @@ export const parsingManualCommand = (message) => {
         if (/^\d{4}$/.test(param)) {
           year = Number(param);
         } else {
-          throw new Error("Invalid period format for yearly. Expected YYYY");
+          return errorResponse(
+            "Invalid year format for yearly. Expected YYYY",
+            400
+          );
         }
         break;
 
       default:
-        throw new Error(`Unsupported type with parameter: ${type}`);
+        return errorResponse("Invalid command type", 400);
     }
   }
 
-  return {
+  return successResponse({
     type: type || null,
     day,
     month,
     year,
-  };
+  });
 };

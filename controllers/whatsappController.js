@@ -16,8 +16,8 @@ import fs from "fs";
 import pino from "pino";
 import {
   parseMessage,
-  checkIfManualCommand,
-  parsingManualCommand,
+  checkIfShowCommand,
+  parsingShowCommand,
 } from "../helpers/parsingMessage.js";
 
 import {
@@ -98,74 +98,97 @@ export const connectToWhatsApp = async () => {
 
   sock.ev.on("creds.update", saveCreds);
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
-    if (type === "notify" && !messages[0].key.fromMe) {
-      const pesan = messages[0].message.conversation || "";
-      const noWa = messages[0].key.remoteJid;
+    if (type !== "notify" || messages[0].key.fromMe) return;
 
-      await sock.readMessages([messages[0].key]);
+    const msg = messages[0].message.conversation || "";
+    const whatsappNumber = messages[0].key.remoteJid;
 
-      if (pesan === "help" || pesan === "Help" || pesan === "HELP") {
-        await sock.sendMessage(
-          noWa,
-          { text: await getHelpCommand() },
-          { quoted: messages[0] }
-        );
-      }
+    await sock.readMessages([messages[0].key]);
 
-      if (checkIfManualCommand(pesan)) {
-        const parsed = parsingManualCommand(pesan);
-        const type = parsed.type;
-        const params = {
-          day: parsed.day,
-          month: parsed.month,
-          year: parsed.year,
-        };
-        const res = await transactionService.getBy(type, params);
-
-        const replyText = await buildMessageReport(
-          res.total_income,
-          res.total_expense,
-          type,
-          params
-        );
-
-        if (replyText) {
-          await sock.sendMessage(
-            noWa,
-            { text: replyText },
-            { quoted: messages[0] }
-          );
-        }
-      } else {
-        const parseResult = parseMessage(pesan);
-
-        if (parseResult) {
-          logger.info(`Parsed message from ${noWa}:`, parseResult);
-
-          // store to database
-          const res = await transactionService.store(parseResult);
-
-          const replyText = await buildMessageLog(
-            res.id,
-            parseResult.type,
-            parseResult.amount,
-            parseResult.description
-          );
-
-          if (replyText) {
-            await sock.sendMessage(
-              noWa,
-              { text: replyText },
-              { quoted: messages[0] }
-            );
-          } else {
-            logger.error("Error building reply message.");
-          }
-        }
-      }
-    }
+    if (await handleHelpCommand(sock, whatsappNumber, msg, messages[0])) return;
+    if (await handleShowCommand(sock, whatsappNumber, msg, messages[0])) return;
+    await handleStoreCommand(sock, whatsappNumber, msg, messages[0]);
   });
 };
+
+async function handleHelpCommand(sock, whatsappNumber, msg, originalMsg) {
+  if (/^help$/i.test(msg)) {
+    const helpText = await getHelpCommand();
+    await sock.sendMessage(
+      whatsappNumber,
+      { text: helpText },
+      { quoted: originalMsg }
+    );
+    return true;
+  }
+  return false;
+}
+
+async function handleShowCommand(sock, whatsappNumber, msg, originalMsg) {
+  if (!checkIfShowCommand(msg)) return false;
+
+  const parsed = parsingShowCommand(msg);
+  if (!parsed.success) {
+    await sock.sendMessage(
+      whatsappNumber,
+      { text: `Error: ${parsed.error}` },
+      { quoted: originalMsg }
+    );
+    return true;
+  }
+
+  const { type, day, month, year } = parsed;
+  const params = { day, month, year };
+  const res = await transactionService.getBy(type, params);
+  const replyText = await buildMessageReport(
+    res.total_income,
+    res.total_expense,
+    type,
+    params
+  );
+
+  if (replyText) {
+    await sock.sendMessage(
+      whatsappNumber,
+      { text: replyText },
+      { quoted: originalMsg }
+    );
+  }
+  return true;
+}
+
+async function handleStoreCommand(sock, whatsappNumber, msg, originalMsg) {
+  const parseResult = parseMessage(msg);
+  if (!parseResult.success) {
+    await sock.sendMessage(
+      whatsappNumber,
+      { text: `Error: ${parseResult.error}` },
+      { quoted: originalMsg }
+    );
+    return true;
+  }
+
+  logger.info(`Parsed message from ${whatsappNumber}:`, parseResult);
+  const res = await transactionService.store(parseResult);
+  const replyText = await buildMessageLog(
+    res.id,
+    parseResult.type,
+    parseResult.amount,
+    parseResult.description
+  );
+
+  if (replyText) {
+    await sock.sendMessage(
+      whatsappNumber,
+      { text: replyText },
+      { quoted: originalMsg }
+    );
+  } else {
+    logger.error("Error building reply message.");
+  }
+
+  return true;
+}
 
 const deleteAuthData = () => {
   try {
@@ -204,7 +227,7 @@ export const updateQR = (data) => {
 };
 
 export const sendMessage = async (req, res) => {
-  const pesankirim = req.body.message;
+  const message = req.body.message;
   const number = req.body.number;
 
   try {
@@ -237,7 +260,7 @@ export const sendMessage = async (req, res) => {
       const file = req.files.file;
       await sock.sendMessage(exists.jid || exists[0].jid, {
         image: file.data,
-        caption: pesankirim,
+        caption: message,
       });
       return res.status(200).json({
         status: true,
@@ -245,7 +268,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    await sock.sendMessage(exists.jid || exists[0].jid, { text: pesankirim });
+    await sock.sendMessage(exists.jid || exists[0].jid, { text: message });
     return res.status(200).json({
       status: true,
       response: "Message sent successfully.",

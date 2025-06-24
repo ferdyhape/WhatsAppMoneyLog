@@ -40,8 +40,6 @@ export const buildMessageReport = async (
 
     let formattedDate = null;
 
-    console.log(param);
-
     if (type === "daily" && param.day == null) {
       const now = new Date();
       formattedDate = now.toLocaleDateString("id-ID"); // Atau format sesuai kebutuhan
@@ -55,7 +53,6 @@ export const buildMessageReport = async (
       formattedDate = `${param.year}`;
     }
 
-    console.log(formattedDate);
     const message = template
       .replace("${total_income}", total_income)
       .replace("${total_expense}", total_expense)
