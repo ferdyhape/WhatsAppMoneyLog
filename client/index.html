@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Usage - WhatsApp Baileys OSINT</title>
+  <title>Usage - WhatsApp Money Log</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -15,7 +15,7 @@
 
 <body class="bg-gradient-to-r from-cyan-100 to-blue-100 min-h-screen flex items-center justify-center">
 
-  <main class="bg-white shadow-xl rounded-2xl max-w-lg w-full text-gray-700 font-sans mx-6">
+  <main class="bg-white shadow-xl my-20 rounded-2xl max-w-lg w-full text-gray-700 font-sans mx-6">
 
     <header class="bg-green-700 text-white text-2xl font-semibold py-4 rounded-t-2xl text-center">
       Usage
@@ -25,28 +25,54 @@
       <div class="space-y-3">
         <div class="grid grid-cols-[auto_1fr] gap-x-3 items-start">
           <div>1.</div>
-          <div>Visit <a href="http://localhost:3000/scan" target="_blank"
+          <div>
+            Visit <a href="http://localhost:3000/scan" target="_blank"
               class="text-blue-600 hover:underline"><strong>http://localhost:3000/scan</strong></a>
-            and scan the QR code with your WhatsApp<strong> (adjust the URL if running on a different port)</strong>
+            and scan the QR code with WhatsApp
+            <strong>(adjust the URL if needed)</strong>
           </div>
         </div>
+
         <div class="grid grid-cols-[auto_1fr] gap-x-3 items-start">
           <div>2.</div>
-          <div>Send messages containing trigger words like <strong>search</strong>, <strong>find</strong>,
-            <strong>cari</strong>, <strong>telusuri</strong>, or <strong>lihat</strong> followed by your query.
+          <div>
+            Send messages in the format:
+            <ul class="list-disc list-inside mt-1 space-y-1">
+              <li><strong>in</strong> [amount] [description]</li>
+              <li><strong>out</strong> [amount] [description]</li>
+              <li>Optional: Add <code class="bg-gray-100 px-1 rounded">-date:DD-MM-YYYY</code> to specify the date</li>
+            </ul>
+
+            <p class="mt-3 font-semibold">Examples:</p>
+            <code class="bg-gray-100 px-2 py-1 rounded block mt-1">out 10rb lunch -date:23-06-2025</code>
+            <code class="bg-gray-100 px-2 py-1 rounded block mt-1">in 300rb project</code>
+            <code class="bg-gray-100 px-2 py-1 rounded block mt-1">out 15rb snacks</code>
+
+            <p class="text-sm text-gray-500 mt-2">
+              If <code>-date</code> is not provided, today's date will be used automatically.
+            </p>
           </div>
         </div>
+
         <div class="grid grid-cols-[auto_1fr] gap-x-3 items-start">
           <div>3.</div>
-          <div>Wrap your query in <strong>quotation marks</strong> for more specific results.</div>
+          <div>
+            To show logs, send commands like:
+            <ul class="list-disc list-inside mt-1 space-y-1">
+              <li><code class="bg-gray-100 px-1 rounded">-show daily:DD-MM-YYYY</code></li>
+              <li><code class="bg-gray-100 px-1 rounded">-show monthly:MM-YYYY</code></li>
+              <li><code class="bg-gray-100 px-1 rounded">-show yearly:YYYY</code></li>
+            </ul>
+            <p class="mt-2">
+              <span class="font-semibold">Example:</span>
+              <code class="bg-gray-100 px-2 py-1 rounded block mt-1">-show monthly:06-2025</code>
+            </p>
+          </div>
         </div>
+
         <div class="grid grid-cols-[auto_1fr] gap-x-3 items-start">
           <div>4.</div>
-          <div>Example: <span class="font-semibold">search "Jane Doe"</span></div>
-        </div>
-        <div class="grid grid-cols-[auto_1fr] gap-x-3 items-start">
-          <div>5.</div>
-          <div>The bot replies with results from Google Custom Search.</div>
+          <div>The bot will reply with a financial summary of your income and expenses.</div>
         </div>
       </div>
     </section>
